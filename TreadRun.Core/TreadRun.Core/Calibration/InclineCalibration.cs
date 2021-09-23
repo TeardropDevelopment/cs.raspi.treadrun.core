@@ -5,10 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TreadRun.Core.Helpers;
+using TreadSense.Helpers;
 using Unosquare.RaspberryIO;
 
-namespace TreadRun.Core.Calibration
+namespace TreadSense.Calibration
 {
     class InclineCalibration : ICalibration
     {

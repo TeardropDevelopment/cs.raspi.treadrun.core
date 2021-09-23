@@ -75,6 +75,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Calibration\InclineCalibration.cs" />
+    <Compile Include="Helpers\Bash.cs" />
     <Compile Include="Helpers\GPIOHelper.cs" />
     <Compile Include="Service\CalibrationService.cs" />
     <Compile Include="Calibration\ICalibration.cs" />

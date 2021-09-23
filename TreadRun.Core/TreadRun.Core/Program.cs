@@ -14,7 +14,7 @@ namespace TreadSense
 {
     class Program
     {
-        public static string DIRECTORY = "../treadrun";
+        public static string DIRECTORY = "../treadsense";
         public static string FILENAME = "device.json";
 
         //Entry point in the program/service
@@ -39,10 +39,10 @@ namespace TreadSense
             {
                 //read from file
                 DeviceJson deviceObj = JsonConvert.DeserializeObject<DeviceJson>(File.ReadAllText($"{DIRECTORY}/{FILENAME}"));
-#if !DEBUG
+#if DEBUG
                 device = new DeviceSettings(string.Format("TreadRun.{0}", "ZeroW"), Helper.StringToEnum<DeviceType>(deviceObj.DeviceType), deviceObj.Calibration.IsCalibrated);
 #else
-                device = new DeviceSettings(string.Format("TreadRun.{0}", Pi.Info.RaspberryPiVersion), Helper.StringToEnum<DeviceType>(deviceObj.DeviceType), deviceObj.Calibration.IsCalibrated);
+                device = new DeviceSettings(string.Format("TreadSense.{0}", Pi.Info.RaspberryPiVersion), Helper.StringToEnum<DeviceType>(deviceObj.DeviceType), deviceObj.Calibration.IsCalibrated);
 #endif
                 LogCenter.Instance.LogInfo(string.Format(I18n.Translation.DeviceCreated, device.DeviceName));
 
