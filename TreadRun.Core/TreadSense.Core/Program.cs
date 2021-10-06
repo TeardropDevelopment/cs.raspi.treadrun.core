@@ -9,6 +9,9 @@ using Newtonsoft.Json;
 using TreadSense.Services;
 using Unosquare.RaspberryIO;
 using Unosquare.WiringPi;
+using System.Net.Sockets;
+using System.Configuration;
+using System.Net;
 
 namespace TreadSense
 {
@@ -31,6 +34,8 @@ namespace TreadSense
              *  - Beta
              */
 
+            LogCenter.Instance.LogInfo("Welcome to TreadSense! Starting...");
+
             InitializeProgram();
 
             DeviceSettings device = null;
@@ -39,17 +44,21 @@ namespace TreadSense
             {
                 //read from file
                 DeviceJson deviceObj = JsonConvert.DeserializeObject<DeviceJson>(File.ReadAllText($"{DIRECTORY}/{FILENAME}"));
-#if DEBUG
-                device = new DeviceSettings(string.Format("TreadRun.{0}", "ZeroW"), Helper.StringToEnum<DeviceType>(deviceObj.DeviceType), deviceObj.Calibration.IsCalibrated);
-#else
-                device = new DeviceSettings(string.Format("TreadSense.{0}", Pi.Info.RaspberryPiVersion), Helper.StringToEnum<DeviceType>(deviceObj.DeviceType), deviceObj.Calibration.IsCalibrated);
-#endif
-                LogCenter.Instance.LogInfo(string.Format(I18n.Translation.DeviceCreated, device.DeviceName));
+
+                if (deviceObj != null)
+                {
+                    device = new DeviceSettings(string.Format("TreadSense.{0}", Pi.Info.RaspberryPiVersion), Helper.StringToEnum<DeviceType>(deviceObj.DeviceType), false);
+                    LogCenter.Instance.LogInfo(string.Format(I18n.Translation.DeviceCreated, device.DeviceName));
+                }
+                else
+                {
+                    LogCenter.Instance.LogError("deviceObj == null | " + File.ReadAllText($"{DIRECTORY}/{FILENAME}"));
+                }
 
             }
             catch (Exception ex)
             {
-                LogCenter.Instance.LogError(ex.Message);
+                LogCenter.Instance.LogFatalError(ex.Message);
                 Console.ReadKey();
                 return;
             }
@@ -58,13 +67,37 @@ namespace TreadSense
             InitializeUser(device);
             LogCenter.Instance.LogInfo("User initialized | Start device thread");
 
-            Task.Run(DeviceThread.StartAsync).Wait();
+            // Start server
+            TcpListener listener = null;
+
+            try
+            {
+                listener = new TcpListener(IPAddress.Any, int.Parse(ConfigurationManager.AppSettings["port"]));
+                listener.Start();
+
+                LogCenter.Instance.LogInfo("Server ready to accept requests...");
+
+                while (true)
+                {
+                    var c = listener.AcceptTcpClient();
+
+                    Task.Run(async () => await DeviceThread.StartAsync(c));
+                }
+
+            }
+            finally
+            {
+
+            }
+
         }
 
         #region static methods
 
         private static void InitializeUser(DeviceSettings device)
         {
+            LogCenter.Instance.LogInfo(device);
+
             switch (device.DeviceType)
             {
                 case DeviceType.Default:
@@ -74,6 +107,7 @@ namespace TreadSense
                 case DeviceType.Beta:
                 case DeviceType.Develop:
                     device.RegisterCalibration(new VelocityCalibration());
+                    device.RegisterCalibration(new InclineCalibration());
                     break;
                 default:
                     device.RegisterCalibration(new VelocityCalibration());
@@ -100,7 +134,7 @@ namespace TreadSense
 
                 if (!File.Exists($"{DIRECTORY}/{FILENAME}"))
                 {
-                    File.WriteAllText($"{DIRECTORY}/{FILENAME}", "{\"deviceType\":\"Default\"}");
+                    File.WriteAllText($"{DIRECTORY}/{FILENAME}", "{\"deviceType\":\"Develop\"}");
                 }
             }
             catch (Exception ex)
@@ -110,7 +144,7 @@ namespace TreadSense
 
         }
 
-        #endregion
+#endregion
     }
 
 #region json classes
@@ -134,6 +168,11 @@ namespace TreadSense
 
         [JsonProperty("calibration")]
         public CalibrationJson Calibration { get; set; }
+
+        public override string ToString()
+        {
+            return DeviceType + " " + Calibration;
+        }
     }
 
 #endregion

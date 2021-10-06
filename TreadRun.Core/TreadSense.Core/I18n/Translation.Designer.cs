@@ -61,6 +61,24 @@ namespace TreadSense.I18n {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to This elements failed the calibration: .
+        /// </summary>
+        internal static string CalibrationError {
+            get {
+                return ResourceManager.GetString("CalibrationError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Calibration successfull.
+        /// </summary>
+        internal static string CalibrationSuccess {
+            get {
+                return ResourceManager.GetString("CalibrationSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Device {0} created.
         /// </summary>
         internal static string DeviceCreated {
