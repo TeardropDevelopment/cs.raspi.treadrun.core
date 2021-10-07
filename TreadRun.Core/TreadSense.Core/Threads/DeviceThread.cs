@@ -68,7 +68,7 @@ namespace TreadSense.Threads
                 LogCenter.Instance.LogInfo("Start welcome MSG");
                 var welcomeAction = ReadAction(br);
 
-                if (welcomeAction != null)
+                if (welcomeAction != null && welcomeAction.Action.Equals(Enums.EnActions.Welcome))
                 {
                     WelcomeJSON welcomeJSON = new WelcomeJSON();
                     if (EnsureExchangeKey(welcomeAction.ExchangeKey))
@@ -87,6 +87,16 @@ namespace TreadSense.Threads
                     }
                     Send(welcomeJSON, bw);
                 }
+                else
+                {
+                    var temp = new WelcomeJSON();
+                    temp.Status = (int)Enums.EnResponseCode.BADREQUEST;
+                    temp.ExchangeKey = EXCHANGEKEY;
+                    Send(temp, bw);
+
+                    LogCenter.Instance.LogError("False protocol. Terminate...");
+                    return;
+                }
 
                 #endregion
 
@@ -98,10 +108,14 @@ namespace TreadSense.Threads
                 {
 
                     action = ReadAction(br);
+                    if(action != null)
+                    {
+                        LogCenter.Instance.LogInfo(" <= New action incoming: " + action.Action);
+                    }
 
                     if (ISRUNNING)
                     {
-
+                        
                     } 
                     else
                     {

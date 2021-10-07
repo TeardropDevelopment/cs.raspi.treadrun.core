@@ -61,7 +61,7 @@ namespace TreadSense.I18n {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to This elements failed the calibration: .
+        ///   Looks up a localized string similar to This modules failed the calibration: .
         /// </summary>
         internal static string CalibrationError {
             get {

@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="CalibrationError" xml:space="preserve">
-    <value>This elements failed the calibration: </value>
+    <value>This modules failed the calibration: </value>
   </data>
   <data name="CalibrationSuccess" xml:space="preserve">
     <value>Calibration successfull</value>
