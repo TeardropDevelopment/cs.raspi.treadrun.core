@@ -43,6 +43,40 @@ namespace TreadSense.Services
 
         #endregion
 
+        #region public methods
+
+		public bool IsCalibrated()
+        {
+			return VelocityCalibration.IsCalibrated && InclineCalibration.IsCalibrated;
+        }
+
+		public Exchange.CalibrateAndStopJSON CalibrateDevice()
+        {
+			bool vcSuccess = VelocityCalibration.Calibrate();
+			bool icSuccess = InclineCalibration.Calibrate();
+
+			//Build the message string
+			string msg = string.Empty;
+			if(vcSuccess && icSuccess)
+            {
+				msg = I18n.Translation.CalibrationSuccess;
+            } 
+			else
+            {
+				msg = I18n.Translation.CalibrationError;
+				if (!vcSuccess) msg += "VelocityModule ";
+				if (!icSuccess) msg += "InclineModule ";
+            }
+
+			var obj = new Exchange.CalibrateAndStopJSON();
+			obj.Success = vcSuccess && icSuccess;
+			obj.Message = msg;
+
+			return obj;
+        }
+
+        #endregion
+
         #region private methods
 
         private CalibrationService Initialize()
