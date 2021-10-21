@@ -10,7 +10,7 @@ using Unosquare.RaspberryIO;
 
 namespace TreadSense.Calibration
 {
-    class InclineCalibration : ICalibration
+    public class InclineCalibration : ICalibration
     {
         public bool IsCalibrated { get; set; }
 
@@ -21,6 +21,8 @@ namespace TreadSense.Calibration
         {
             try
             {
+
+
                 // Get a json string from gyro.py script
                 string jsonResponse = Bash.ExecuteBashCommand("python3 ../../../../gyro.py");
 
@@ -31,34 +33,37 @@ namespace TreadSense.Calibration
 
                 IsCalibrated = true;
 
-                LogCenter.Instance.LogInfo($"Incline calibrated successfully: {XIncline}, {YIncline}");
+                LogCenter.Instance.LogInfo($"Incline calibrated successfully: {XIncline}");
 
                 Save();
 
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                LogCenter.Instance.LogFatalError(ex);
                 return false;
             }
         }
 
         #region load / save
 
-        public void Load()
+        public object Load()
         {
             try
             {
                 string serialized = File.ReadAllText($"{Program.DIRECTORY}/inclinecalibration.json");
                 InclineCalibrationJSON obj = JsonConvert.DeserializeObject<InclineCalibrationJSON>(serialized);
                 IsCalibrated = obj.IsCalibrated;
-                XIncline = obj.X;
-                YIncline = obj.Y;
+                XIncline = (int)obj.X;
+                YIncline = (int)obj.Y;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                LogCenter.Instance.LogError("Device wasn't calibrated before. Calibrate...");
+                LogCenter.Instance.LogError("[InclineCalibration] Device wasn't calibrated before!");
             }
+
+            return null;
         }
 
         public void Save()

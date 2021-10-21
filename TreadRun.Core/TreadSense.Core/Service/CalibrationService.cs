@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TreadSense.Calibration;
 
-namespace TreadSense.Services
+namespace TreadSense.Service
 {
     class CalibrationService
     {
@@ -52,8 +52,8 @@ namespace TreadSense.Services
 
 		public Exchange.CalibrateAndStopJSON CalibrateDevice()
         {
-			bool vcSuccess = VelocityCalibration.Calibrate();
-			bool icSuccess = InclineCalibration.Calibrate();
+			bool vcSuccess = this.VelocityCalibration.Calibrate();
+			bool icSuccess = this.InclineCalibration.Calibrate();
 
 			//Build the message string
 			string msg = string.Empty;
@@ -75,11 +75,21 @@ namespace TreadSense.Services
 			return obj;
         }
 
-        #endregion
+		internal List<double> GetDistances()
+		{
+			return VelocityCalibration.Load() as List<double>;
+		}
 
-        #region private methods
+		public double GetDefaultIncline()
+        {
+			return (double)InclineCalibration.Load();
+        }
 
-        private CalibrationService Initialize()
+		#endregion
+
+		#region private methods
+
+		private CalibrationService Initialize()
 		{
 			CreateNewServiceInstances();
 			return this;

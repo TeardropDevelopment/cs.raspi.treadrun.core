@@ -11,7 +11,7 @@ namespace TreadSense.Calibration
         bool IsCalibrated { get; }
         bool Calibrate();
 
-        void Load();
+        object Load();
         void Save();
     }
 }

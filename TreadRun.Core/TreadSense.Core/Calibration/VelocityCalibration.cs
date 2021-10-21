@@ -14,12 +14,10 @@ namespace TreadSense.Calibration
     {
         //Speed used to calibrate the device (kph)
         private const int KPH = 5;
+
         //How long should the calibration wait for the first stripe (sec)
-#if DEBUG
-        private const int TIMEOUT = 5;
-#else
         private const int TIMEOUT = 30;
-#endif
+
         //How long should the calibration run (sec)
         private const int CALIBRATIONTIME = 15;
 
@@ -53,11 +51,7 @@ namespace TreadSense.Calibration
             Stopwatch timeBetweenStripes = new Stopwatch();
 
             runTime.Start();
-#if !DEBUG
-            while (false)
-#else
             while (GPIOHelper.ReadDigital(PR_GPIO))
-#endif
             {
                 if (runTime.Elapsed.TotalSeconds >= TIMEOUT)
                 {
@@ -66,26 +60,22 @@ namespace TreadSense.Calibration
                 }
             }
 
-            //Read the stripes and calculate the distance between them
+            // Read the stripes and calculate the distance between them
             runTime.Restart();
             timeBetweenStripes.Restart();
             while (runTime.Elapsed.TotalSeconds <= CALIBRATIONTIME)
             {
-                //If another stripe got read
-#if !DEBUG
-                if (timeBetweenStripes.ElapsedMilliseconds >= 150)
-#else
+                // If another stripe got read
                 readOld = readNew;
                 readNew = GPIOHelper.ReadDigital(PR_GPIO);
                 if (readOld != readNew && readNew)
-#endif
                 {
                     if (timeBetweenStripes.ElapsedMilliseconds >= 10)
                     {
                         distances.Add((timeBetweenStripes.Elapsed.TotalSeconds.ToFixed(3) * (KPH / 3.6)).ToFixed(3));
                         timeBetweenStripes.Restart();
 
-                        LogCenter.Instance.LogInfo("Hittet stripe!");
+                        LogCenter.Instance.LogInfo("Stripe hitted!");
 
                         hits++;
                     }
@@ -123,7 +113,7 @@ namespace TreadSense.Calibration
 
         #region load / save
 
-        public void Load()
+        public object Load()
         {
             try
             {
@@ -132,10 +122,12 @@ namespace TreadSense.Calibration
                 IsCalibrated = obj.IsCalibrated;
                 Distance = obj.Distance;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                LogCenter.Instance.LogError("Device wasn't calibrated before. Calibrate...");
+                LogCenter.Instance.LogError("[VelocityCalibration] Device wasn't calibrated before!");
             }
+
+            return Distance;
         }
 
         public void Save()

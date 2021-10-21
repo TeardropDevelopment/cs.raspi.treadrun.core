@@ -6,7 +6,7 @@ using TreadSense.Calibration;
 using System.Threading.Tasks;
 using TreadSense.Threads;
 using Newtonsoft.Json;
-using TreadSense.Services;
+using TreadSense.Service;
 using Unosquare.RaspberryIO;
 using Unosquare.WiringPi;
 using System.Net.Sockets;

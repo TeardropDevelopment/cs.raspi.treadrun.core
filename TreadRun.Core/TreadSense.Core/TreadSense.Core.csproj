@@ -92,6 +92,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Calculations\Calculation.cs" />
     <Compile Include="Calibration\InclineCalibration.cs" />
     <Compile Include="Enums\Enums.cs" />
     <Compile Include="Helpers\Bash.cs" />
@@ -114,6 +115,7 @@
     <Compile Include="Helpers\Helper.cs" />
     <Compile Include="Protocol\IConnectionProtocol.cs" />
     <Compile Include="Threads\DeviceThread.cs" />
+    <Compile Include="Service\RunService.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

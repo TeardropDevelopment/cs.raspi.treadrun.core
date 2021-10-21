@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Configuration;
 using System.IO;
 using System.Linq;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 using TreadSense.Calibration;
 using TreadSense.Device;
 using TreadSense.Helpers;
-using TreadSense.Services;
+using TreadSense.Service;
 
 namespace TreadSense.Threads
 {
@@ -20,30 +21,10 @@ namespace TreadSense.Threads
         private static string EXCHANGEKEY = ConfigurationManager.AppSettings["exchangeKey"];
         private static bool ISRUNNING = false;
 
-        public static async Task StartAsync(object o)
-        {
-            LogCenter.Instance.LogInfo("Started thread...");
+        private static new ActionJSON ActionJSON = null;
 
-            //// CAlibration is later a user problem
-            //if(!CalibrationService.Instance.VelocityCalibration.IsCalibrated)
-            //{
-            //    if(CalibrationService.Instance.VelocityCalibration.Calibrate())
-            //        LogCenter.Instance.LogInfo("Calibration successful!");
-            //} 
-            //else
-            //{
-            //    LogCenter.Instance.LogInfo("Device already calibrated!");
-            //}
+        public static Task StartAsync(object o) {
 
-            //if (!CalibrationService.Instance.InclineCalibration.IsCalibrated)
-            //{
-            //    if (CalibrationService.Instance.InclineCalibration.Calibrate())
-            //        LogCenter.Instance.LogInfo("Calibration successful!");
-            //}
-            //else
-            //{
-            //    LogCenter.Instance.LogInfo("Device already calibrated!");
-            //}
             #region connect to server
 
             NetworkStream ns = null;
@@ -66,9 +47,12 @@ namespace TreadSense.Threads
                 #region WELCOME MSG
 
                 LogCenter.Instance.LogInfo("Start welcome MSG");
-                var welcomeAction = ReadAction(br);
+                ReadActionAsync(br);
 
-                if (welcomeAction != null && welcomeAction.Action.Equals(Enums.EnActions.Welcome))
+                while (ActionJSON == null);
+                var welcomeAction = ActionJSON;
+
+                if (welcomeAction != null)
                 {
                     WelcomeJSON welcomeJSON = new WelcomeJSON();
                     if (EnsureExchangeKey(welcomeAction.ExchangeKey))
@@ -95,7 +79,7 @@ namespace TreadSense.Threads
                     Send(temp, bw);
 
                     LogCenter.Instance.LogError("False protocol. Terminate...");
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 #endregion
@@ -103,21 +87,22 @@ namespace TreadSense.Threads
 
                 LogCenter.Instance.LogInfo("Start loop...");
 
-                ActionJSON action;
+                ActionJSON = null;
+                ActionJSON action = null;
                 while (true)
                 {
-
-                    action = ReadAction(br);
-                    if(action != null)
+                    if (ActionJSON != null)
                     {
+                        action = ActionJSON;
                         LogCenter.Instance.LogInfo(" <= New action incoming: " + action.Action);
                     }
 
-                    if (ISRUNNING)
+                    if (ISRUNNING && action == null)
                     {
-                        
-                    } 
-                    else
+                        RunService.Instance.CalculateAndSend(bw);
+                    }
+
+                    if (action != null)
                     {
                         if (action.Action.Equals(Enums.EnActions.Start.ToString()))
                         {
@@ -130,6 +115,9 @@ namespace TreadSense.Threads
                                 {
                                     startJSON.Status = (int)Enums.EnResponseCode.OK;
                                     startJSON.ExchangeKey = EXCHANGEKEY;
+
+                                    RunService.Instance.Start();
+                                    ISRUNNING = true;
                                 }
                                 else
                                 {
@@ -150,8 +138,9 @@ namespace TreadSense.Threads
                         if (action.Action.Equals(Enums.EnActions.Calibrate.ToString()))
                         {
                             #region calibrate action
+
                             CalibrateAndStopJSON calibrateJSON = new CalibrateAndStopJSON();
-                            if (EnsureExchangeKey(calibrateJSON.ExchangeKey))
+                            if (EnsureExchangeKey(action.ExchangeKey))
                             {
                                 calibrateJSON = CalibrationService.Instance.CalibrateDevice();
                                 calibrateJSON.ExchangeKey = EXCHANGEKEY;
@@ -166,11 +155,35 @@ namespace TreadSense.Threads
 
                             #endregion
                         }
+
+                        if (action.Action.Equals(Enums.EnActions.Stop.ToString()))
+                        {
+                            #region Start action
+
+                            CalibrateAndStopJSON stopJSON = new CalibrateAndStopJSON();
+                            if (EnsureExchangeKey(action.ExchangeKey))
+                            {
+                                stopJSON.ExchangeKey = EXCHANGEKEY;
+                                stopJSON.Status = (int)Enums.EnResponseCode.OK;
+
+                                ISRUNNING = false;
+                                RunService.Instance.Stop();
+                            }
+                            else
+                            {
+                                stopJSON.ExchangeKey = EXCHANGEKEY;
+                                stopJSON.Status = (int)Enums.EnResponseCode.BADREQUEST;
+                            }
+                            Send(stopJSON, bw);
+
+                            #endregion
+                        }
+
+
+                        action = null;
+                        ActionJSON = null;
                     }
-
-                    await Task.Delay(1);
                 }
-
 
                 #endregion
             }
@@ -191,9 +204,33 @@ namespace TreadSense.Threads
 
         #region private methods
 
-        private static ActionJSON ReadAction(BinaryReader br)
+        private static void ReadActionAsync(BinaryReader br)
         {
-            return JsonConvert.DeserializeObject<ActionJSON>(Recv(br));
+
+            BackgroundWorker bw = new BackgroundWorker() { WorkerSupportsCancellation = true };
+
+            bw.DoWork += Bw_DoWork;
+            bw.RunWorkerCompleted += Bw_RunWorkerCompleted;
+
+            bw.RunWorkerAsync(br);
+        }
+
+        private static void Bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if(e.Cancelled)
+            {
+                LogCenter.Instance.LogInfo("BackgroundWorker canceled");
+            }
+        }
+
+        private static void Bw_DoWork(object sender, DoWorkEventArgs e)
+        {
+            while (!e.Cancel)
+            {
+                string s = Recv(e.Argument as BinaryReader);
+
+                ActionJSON = string.IsNullOrEmpty(s) ? null : JsonConvert.DeserializeObject<ActionJSON>(s); 
+            }
         }
 
         private static string Recv(BinaryReader br)
@@ -209,7 +246,7 @@ namespace TreadSense.Threads
                 // DO NOTHING HERE (EOS ... End Of Stream)
             }
 
-            return String.Empty;
+            return string.Empty;
         }
 
         private static void Send(object o, BinaryWriter bw)
