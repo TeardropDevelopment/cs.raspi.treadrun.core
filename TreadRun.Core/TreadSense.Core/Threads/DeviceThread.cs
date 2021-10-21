@@ -109,7 +109,7 @@ namespace TreadSense.Threads
                             #region Start action
 
                             StartJSON startJSON = new StartJSON();
-                            if (EnsureExchangeKey(action.ExchangeKey))
+                            if (EnsureExchangeKey(action.ExchangeKey) && !ISRUNNING)
                             {
                                 if (CalibrationService.Instance.IsCalibrated())
                                 {
