@@ -23,6 +23,8 @@ namespace TreadSense
         //Entry point in the program/service
         static void Main(string[] args)
         {
+            
+
             /*
              * args[0] can be:  (Which device is the user using)
              *  - TreadRun.ZeroW

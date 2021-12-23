@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using TreadSense.Helpers;
 
@@ -43,7 +44,7 @@ namespace TreadSense.Calibration
 
             //vars
             int hits = 0;
-            bool readOld, readNew = true;
+            bool readOld = true, readNew;
             List<double> distances = new List<double>();
 
             //start timer
@@ -58,32 +59,42 @@ namespace TreadSense.Calibration
                     LogCenter.Instance.LogError("408 | Calibration ran into a timeout");
                     return false;
                 }
+
+                Thread.Sleep(1);
             }
 
             // Read the stripes and calculate the distance between them
             runTime.Restart();
             timeBetweenStripes.Restart();
+            double lastTime = 0;
             while (runTime.Elapsed.TotalSeconds <= CALIBRATIONTIME)
             {
                 // If another stripe got read
-                readOld = readNew;
                 readNew = GPIOHelper.ReadDigital(PR_GPIO);
-                if (readOld != readNew && readNew)
+                if ((readOld != readNew) && !(readOld = readNew))
                 {
-                    if (timeBetweenStripes.ElapsedMilliseconds >= 10)
+                    if (timeBetweenStripes.ElapsedMilliseconds - lastTime >= 50)
                     {
-                        distances.Add((timeBetweenStripes.Elapsed.TotalSeconds.ToFixed(3) * (KPH / 3.6)).ToFixed(3));
-                        timeBetweenStripes.Restart();
-
+                        var time = timeBetweenStripes.Elapsed.TotalMilliseconds.ToFixed(0);
+                        distances.Add(((time - lastTime) * (KPH / 3.6)).ToFixed(0));
+                        lastTime = time;
                         LogCenter.Instance.LogInfo("Stripe hitted!");
 
                         hits++;
                     }
                 }
+                Thread.Sleep(1);
+            }
+
+            if (distances.Count > 0)
+            {
+                LogCenter.Instance.LogError("400 | Calibration ran into an error");
+                return false;
             }
 
             //Calculate how many stripes there are
             List<double> s = new List<double>();
+            bool foundStripes = false;
             int k = 0;
             for (int i = 0; i < distances.Count; i++)
             {
@@ -91,17 +102,21 @@ namespace TreadSense.Calibration
                 {
                     if (k++ == 3)
                     {
+                        foundStripes = true;
                         break;
                     }
                 }
                 s.Add(distances[i]);
+                Thread.Sleep(1);
             }
-            s.RemoveRange(s.Count - 4, 3);
+            if(foundStripes)
+                s.RemoveRange(s.Count - 4, 3);
 
             Distance = s;
             foreach (var item in Distance)
             {
                 LogCenter.Instance.LogInfo(item);
+                Thread.Sleep(1);
             }
 
             IsCalibrated = true;

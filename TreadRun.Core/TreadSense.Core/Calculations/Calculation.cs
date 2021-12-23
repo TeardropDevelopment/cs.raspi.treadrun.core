@@ -45,13 +45,10 @@ namespace TreadSense.Calculations
         {
             try
             {
-                LogCenter.Instance.LogInfo("Start calculating velocity");
-
-                currentMps = distances[index].ToFixed(3) / time;
+                currentMps = distances[index].ToFixed(2) / time.ToFixed(0);
 
                 if (++index >= distances.Count)
                 {
-                    LogCenter.Instance.LogInfo("Iterated through all distances");
                     index = 0;
                 }
 

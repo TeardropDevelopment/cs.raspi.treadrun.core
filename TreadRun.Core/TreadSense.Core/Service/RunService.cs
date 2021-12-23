@@ -40,12 +40,18 @@ namespace TreadSense.Service
 
         #endregion
 
+        #region statics
+
+        private static int SEND_INTERVAL = 10;
+
+        #endregion
+
         #region private members
 
         private Calculations.Calculation c;
         private Stopwatch timeBetweenStripes;
 
-        private bool readOld, readNew = true;
+        private bool readOld = false, readNew = false;
 
         #endregion
 
@@ -66,20 +72,28 @@ namespace TreadSense.Service
             timeBetweenStripes.Stop();
         }
 
+        public static List<double> velocity = new List<double>();
+        private double lastTimeRead, lastTimeSent;
         public void CalculateAndSend(BinaryWriter bw)
         {
             // Read the stripes and calculate the distance between them
-            readOld = readNew;
             readNew = GPIOHelper.ReadDigital(17);
-            if (readOld != readNew && readNew)
+            var time = timeBetweenStripes.Elapsed.TotalMilliseconds;
+            if ((readOld != readNew) && !(readOld = readNew))
             {
-                if (timeBetweenStripes.ElapsedMilliseconds >= 10)
+                if (time - lastTimeRead >= 50)
                 {
-                    var v = c.CalculateVelocity(timeBetweenStripes.Elapsed.TotalSeconds);
-                    LogCenter.Instance.LogFatal(v);
-                    Send(bw, v);
-                    timeBetweenStripes.Restart();
+                    var v = c.CalculateVelocity(time - lastTimeRead).ToFixed(1);
+                    lastTimeRead = time;
+                    velocity.Add(v);
                 }
+            }
+
+            if(velocity.Count >= 1 && (time - lastTimeSent) >= 500)
+            {
+                Send(bw, velocity.Average());
+                velocity.Clear();
+                lastTimeSent = time;
             }
         }
 

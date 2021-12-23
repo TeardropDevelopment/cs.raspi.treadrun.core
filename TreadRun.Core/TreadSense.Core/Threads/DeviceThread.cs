@@ -8,22 +8,41 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using TreadSense.Calibration;
 using TreadSense.Device;
 using TreadSense.Helpers;
+using TreadSense.I18n;
 using TreadSense.Service;
 
 namespace TreadSense.Threads
 {
+    class ActionChangedEA : EventArgs
+    {
+        public Exchange.ActionJSON Action { get; set;}
+
+        public ActionChangedEA(Exchange.ActionJSON action)
+        {
+            Action = action;
+        }
+    }
+
     class DeviceThread : Exchange
     {
         private static string EXCHANGEKEY = ConfigurationManager.AppSettings["exchangeKey"];
         private static bool ISRUNNING = false;
 
         private static new ActionJSON ActionJSON = null;
+        private static event EventHandler<ActionChangedEA> ActionChanged;
 
         public static Task StartAsync(object o) {
+
+            #region EventListener
+
+            ActionChanged += DeviceThread_ActionChanged;
+
+            #endregion
 
             #region connect to server
 
@@ -84,8 +103,9 @@ namespace TreadSense.Threads
 
                 #endregion
 
-
+                Thread.Sleep(1);
                 LogCenter.Instance.LogInfo("Start loop...");
+                GPIOHelper.Initialize();
 
                 ActionJSON = null;
                 ActionJSON action = null;
@@ -94,7 +114,7 @@ namespace TreadSense.Threads
                     if (ActionJSON != null)
                     {
                         action = ActionJSON;
-                        LogCenter.Instance.LogInfo(" <= New action incoming: " + action.Action);
+                        LogCenter.Instance.LogInfo("<= New action incoming: " + action.Action);
                     }
 
                     if (ISRUNNING && action == null)
@@ -183,6 +203,8 @@ namespace TreadSense.Threads
                         action = null;
                         ActionJSON = null;
                     }
+
+                    Thread.Sleep(1);
                 }
 
                 #endregion
@@ -203,6 +225,12 @@ namespace TreadSense.Threads
         }
 
         #region private methods
+
+        private static void DeviceThread_ActionChanged(object sender, ActionChangedEA e)
+        {
+            ActionJSON = e.Action;
+            LogCenter.Instance.LogInfo("New Action setted = " + e.Action);
+        }
 
         private static void ReadActionAsync(BinaryReader br)
         {
@@ -228,8 +256,8 @@ namespace TreadSense.Threads
             while (!e.Cancel)
             {
                 string s = Recv(e.Argument as BinaryReader);
-
-                ActionJSON = string.IsNullOrEmpty(s) ? null : JsonConvert.DeserializeObject<ActionJSON>(s); 
+                ActionChanged(e, new ActionChangedEA(string.IsNullOrEmpty(s) ? null : JsonConvert.DeserializeObject<ActionJSON>(s)));
+                Thread.Sleep(1);
             }
         }
 
@@ -238,12 +266,13 @@ namespace TreadSense.Threads
             try
             {
                 string s = br.ReadString();
-                LogCenter.Instance.LogInfo(" <= " + s);
+                LogCenter.Instance.LogInfo("<= " + s);
                 return s;
             }
             catch (Exception)
             {
                 // DO NOTHING HERE (EOS ... End Of Stream)
+                //LogCenter.Instance.LogError("EOFException");
             }
 
             return string.Empty;
@@ -251,7 +280,7 @@ namespace TreadSense.Threads
 
         private static void Send(object o, BinaryWriter bw)
         {
-            LogCenter.Instance.LogInfo(" => " + JsonConvert.SerializeObject(o));
+            LogCenter.Instance.LogInfo("=> " + JsonConvert.SerializeObject(o));
             bw.Write(JsonConvert.SerializeObject(o));
         }
 
